@@ -109,7 +109,7 @@ const createEngagedDwellTimePlugin = (options = {}) => {
 
   const fireSummaryEvent = () => {
     if (hasFired || !amplitudeInstance) return;
-    if (pageCounter > 1) return; // navigated — last-page gap accepted, no event
+    if (pageCounter !== 1) return; // only fire when execute() has confirmed this is page 1
 
     hasFired = true;
     clearInterval(tickTimer);

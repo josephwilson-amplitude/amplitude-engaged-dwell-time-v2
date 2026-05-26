@@ -475,7 +475,7 @@
         <p>When a user lands and closes the browser without ever navigating, the page counter never exceeds 1. In that case the plugin falls back to a dedicated <code>[Engaged Dwell] Page Exit</code> event, fired on <code>visibilitychange</code>, <code>pagehide</code>, or <code>beforeunload</code>. This event carries the same five <code>et_*</code> properties as any piggybacked page view, so both event types slot into the same Amplitude metric without any special handling.</p>
         <div class="callout">
           <strong>Try it: Simulate Page Exit</strong>
-          You are currently on page 2, so navigating back to page 1 and using the "Simulate Page Exit" button will fire a <code>[Engaged Dwell] Page Exit</code> event — the single-page session path. Check the event log to see it tagged in pink.
+          To see a <code>[Engaged Dwell] Page Exit</code> event fire, you need to be on page counter 1 — meaning no navigation has happened yet in this session. Open the demo in a new tab and click "Simulate Page Exit" before navigating anywhere. Once you navigate to page 2, the page counter exceeds 1 and the exit event will not fire for the remainder of the session.
         </div>
         <div class="page-nav">
           <button class="nav-btn" onclick="navigateTo(0)">← Previous</button>
