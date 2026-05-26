@@ -241,6 +241,17 @@
     .tag-piggy   { background: #0d3050; color: #64d2ff; }
     .tag-pageview { background: #1a3a1a; color: #81c784; }
     .log-empty { color: #4e4e52; font-size: 11px; text-align: center; padding: 20px 0; }
+    .log-divider {
+      display: block;
+      text-align: center;
+      color: #4e4e52;
+      font-size: 10px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin: 6px 0 4px;
+      border-top: 1px solid #2d2d2f;
+      padding-top: 6px;
+    }
 
     /* ── How It Works tab ─────────────────────────────────────────────────── */
     .howto-wrap {
@@ -680,14 +691,27 @@ router.afterEach((to) =&gt; {
     const time = new Date().toLocaleTimeString([], { hour12: false });
     const tagHtml = tag ? `<span class="log-tag ${tag.cls}">${tag.label}</span>` : '';
 
-    const propsHtml = Object.entries(props)
-      .filter(([k]) => !k.startsWith('[Amplitude]') || k.includes('Page Counter'))
-      .map(([k, v]) => {
-        const isEt = k.startsWith('et_');
-        const valClass = isEt ? 'prop-value inherited' : 'prop-value';
-        const display = typeof v === 'string' && v.length > 40 ? v.slice(0, 40) + '…' : v;
-        return `<span class="log-prop"><span class="prop-key">${k}</span>: <span class="${valClass}">${JSON.stringify(display)}</span></span>`;
-      }).join('');
+    // Split into current-page props and previous-page et_* props
+    const allEntries = Object.entries(props);
+    const currentProps = allEntries.filter(([k]) =>
+      k === '[Amplitude] Page Counter' ||
+      k === '[Amplitude] Page URL' ||
+      k === '[Amplitude] Page Title'
+    );
+    const etProps = allEntries.filter(([k]) => k.startsWith('et_'));
+
+    const renderProp = (k, v, isEt) => {
+      const valClass = isEt ? 'prop-value inherited' : 'prop-value';
+      const display  = typeof v === 'string' && v.length > 44 ? v.slice(0, 44) + '…' : v;
+      return `<span class="log-prop"><span class="prop-key">${k}</span>: <span class="${valClass}">${JSON.stringify(display)}</span></span>`;
+    };
+
+    const currentHtml = currentProps.map(([k, v]) => renderProp(k, v, false)).join('');
+    const etHtml      = etProps.map(([k, v]) => renderProp(k, v, true)).join('');
+    const divider     = etProps.length
+      ? `<span class="log-divider">— previous page —</span>`
+      : '';
+    const propsHtml   = currentHtml + divider + etHtml;
 
     entry.innerHTML = `
       <span class="log-time">${time}</span>
