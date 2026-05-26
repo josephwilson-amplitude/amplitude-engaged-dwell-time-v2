@@ -471,6 +471,12 @@
         <h2>The page counter gate</h2>
         <p>When a new <code>[Amplitude] Page Viewed</code> event passes through <code>execute()</code>, the plugin reads <code>[Amplitude] Page Counter</code>. If it is 1, this is the first page — tracking begins and no data is attached yet. If it is 2 or higher, the previous page's data is snapshotted and attached as <code>et_*</code> properties before the event reaches Amplitude's servers.</p>
         <p>This means dwell time data travels on events that were already going to fire. No additional event volume for multi-page sessions.</p>
+        <h2>Single-page sessions</h2>
+        <p>When a user lands and closes the browser without ever navigating, the page counter never exceeds 1. In that case the plugin falls back to a dedicated <code>[Engaged Dwell] Page Exit</code> event, fired on <code>visibilitychange</code>, <code>pagehide</code>, or <code>beforeunload</code>. This event carries the same five <code>et_*</code> properties as any piggybacked page view, so both event types slot into the same Amplitude metric without any special handling.</p>
+        <div class="callout">
+          <strong>Try it: Simulate Page Exit</strong>
+          You are currently on page 2, so navigating back to page 1 and using the "Simulate Page Exit" button will fire a <code>[Engaged Dwell] Page Exit</code> event — the single-page session path. Check the event log to see it tagged in pink.
+        </div>
         <div class="page-nav">
           <button class="nav-btn" onclick="navigateTo(0)">← Previous</button>
           <button class="nav-btn primary" onclick="navigateTo(2)">Next: The Properties →</button>
