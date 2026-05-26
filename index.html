@@ -668,6 +668,14 @@ router.afterEach((to) =&gt; {
 <!-- ── Scripts ──────────────────────────────────────────────────────────────── -->
 <script src="engaged-dwell-time-plugin.js"></script>
 <script>
+  // ── Tab switching ─────────────────────────────────────────────────────────
+  function switchTab(id, btn) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + id).classList.add('active');
+    btn.classList.add('active');
+  }
+
   // ── Mock Amplitude ────────────────────────────────────────────────────────
   // Replace with a real amplitude.init() + amplitude.add(plugin) for live data.
   //
