@@ -50,7 +50,7 @@
       border-bottom: 1px solid #e0e0e0;
       padding: 16px 32px;
       display: grid;
-      grid-template-columns: 1fr auto auto auto auto auto auto;
+      grid-template-columns: 1fr auto auto auto auto;
       align-items: center;
       gap: 24px;
     }
@@ -415,16 +415,8 @@
   <!-- Demo bar -->
   <div class="demo-bar">
     <div class="stat-group">
-      <span class="stat-label">Engaged</span>
-      <span class="stat-value" id="val-engaged">0.0s</span>
-    </div>
-    <div class="stat-group">
       <span class="stat-label">Total</span>
       <span class="stat-value" id="val-total">0.0s</span>
-    </div>
-    <div class="stat-group">
-      <span class="stat-label">Idle</span>
-      <span class="stat-value" id="val-idle">0.0s</span>
     </div>
     <div class="ratio-wrap">
       <div style="display:flex; justify-content:space-between;">
@@ -434,6 +426,10 @@
       <div class="ratio-bar-bg"><div id="ratio-bar"></div></div>
     </div>
     <div id="engaged-badge" class="active">● ENGAGED</div>
+    <div class="stat-group" style="text-align:right;">
+      <span class="stat-label">Engaged</span>
+      <span class="stat-value" id="val-engaged">0.0s</span>
+    </div>
     <button class="demo-btn" id="exit-btn" onclick="simulateExit()">Simulate Page Exit</button>
   </div>
 
@@ -798,7 +794,6 @@ router.afterEach((to) =&gt; {
   // ── Live stats ─────────────────────────────────────────────────────────────
   const valEngaged = document.getElementById('val-engaged');
   const valTotal   = document.getElementById('val-total');
-  const valIdle    = document.getElementById('val-idle');
   const valRatio   = document.getElementById('val-ratio');
   const badge      = document.getElementById('engaged-badge');
   const ratioBar   = document.getElementById('ratio-bar');
@@ -808,13 +803,11 @@ router.afterEach((to) =&gt; {
   setInterval(() => {
     const engaged = plugin.getEngagedTimeMs();
     const total   = plugin.getTotalTimeMs();
-    const idle    = Math.max(0, total - engaged);
     const ratio   = total > 0 ? engaged / total : 0;
     const active  = plugin.isEngaged();
 
     valEngaged.textContent = fmt(engaged);
     valTotal.textContent   = fmt(total);
-    valIdle.textContent    = fmt(idle);
     valRatio.textContent   = (ratio * 100).toFixed(0) + '%';
     ratioBar.style.width   = (ratio * 100).toFixed(1) + '%';
 
