@@ -664,6 +664,7 @@ router.afterEach((to) =&gt; {
 
 
 <!-- ── Scripts ──────────────────────────────────────────────────────────────── -->
+<script src="https://cdn.jsdelivr.net/npm/@amplitude/analytics-browser@2/dist/analytics-browser.umd.min.js"></script>
 <script src="engaged-dwell-time-plugin.js"></script>
 <script>
   // ── Tab switching ─────────────────────────────────────────────────────────
@@ -723,37 +724,47 @@ router.afterEach((to) =&gt; {
     logEntries.prepend(entry);
   }
 
-  const mockAmplitude = {
-    track(name, props) {
-      console.group(`📡 ${name}`);
+  // ── Logger plugin ─────────────────────────────────────────────────────────
+  // Runs after the dwell plugin so it sees the fully enriched event before
+  // it leaves for Amplitude's servers. Also logs to the browser console.
+  const createLoggerPlugin = () => ({
+    name: 'demo-logger',
+    type: 'enrichment',
+    setup: async () => {},
+    execute: async (event) => {
+      const name     = event.event_type;
+      const props    = event.event_properties || {};
+      const isExit   = name === '[Engaged Dwell] Page Exit';
+      const hasPiggy = Object.keys(props).some(k => k.startsWith('et_'));
+      let tag;
+      if (isExit)        tag = { cls: 'tag-exit',     label: 'Page Exit' };
+      else if (hasPiggy) tag = { cls: 'tag-piggy',    label: 'Piggybacked' };
+      else               tag = { cls: 'tag-pageview', label: 'Page View' };
+      console.group(`📡 Amplitude: ${name}`);
       console.table(props);
       console.groupEnd();
-      const isExit  = name === '[Engaged Dwell] Page Exit';
-      const hasPiggy = props && Object.keys(props).some(k => k.startsWith('et_'));
-      let tag = null;
-      if (isExit)   tag = { cls: 'tag-exit',    label: 'Page Exit' };
-      else if (hasPiggy) tag = { cls: 'tag-piggy', label: 'Piggybacked' };
-      else          tag = { cls: 'tag-pageview', label: 'Page View' };
-      logEvent(name, props || {}, tag);
+      logEvent(name, props, tag);
+      return event;
     },
-    flush() { console.log('📤 flush()'); }
-  };
+  });
 
-  // ── Initialise plugin ─────────────────────────────────────────────────────
+  // ── Initialise Amplitude + plugins ────────────────────────────────────────
   const plugin = createEngagedDwellTimePlugin({ inactivityThreshold: 10_000 });
-  plugin.setup({}, mockAmplitude);
 
-  // Fire the first page view (page counter = 1)
   (async () => {
-    const firstPageView = await plugin.execute({
-      event_type: '[Amplitude] Page Viewed',
-      event_properties: {
-        '[Amplitude] Page Counter': 1,
-        '[Amplitude] Page URL':   location.href,
-        '[Amplitude] Page Title': 'Why Dwell Time Is Lying to You',
-      }
+    await amplitude.init('e9d69853ae9ebb242606042efb2a11b7', {
+      defaultTracking: { pageViews: false },  // we fire page views manually with our counter
+    }).promise;
+
+    amplitude.add(plugin);              // dwell plugin enriches first
+    amplitude.add(createLoggerPlugin()); // logger sees the enriched event
+
+    // Fire the first page view (counter = 1)
+    amplitude.track('[Amplitude] Page Viewed', {
+      '[Amplitude] Page Counter': 1,
+      '[Amplitude] Page URL':     '/demo/page-1',
+      '[Amplitude] Page Title':   'Why Dwell Time Is Lying to You',
     });
-    mockAmplitude.track(firstPageView.event_type, firstPageView.event_properties);
   })();
 
   // ── SPA navigation simulation ─────────────────────────────────────────────
@@ -770,18 +781,13 @@ router.afterEach((to) =&gt; {
     currentPage = index;
     sessionPageCounter++;     // every navigation is a new page view in the session
 
-    // Simulate [Amplitude] Page Viewed — plugin's execute() handles snapshot + reset
-    const pageViewEvent = {
-      event_type: '[Amplitude] Page Viewed',
-      event_properties: {
-        '[Amplitude] Page Counter': sessionPageCounter,
-        '[Amplitude] Page URL':     pages[index].url,
-        '[Amplitude] Page Title':   pages[index].title,
-      }
-    };
-
-    const enriched = await plugin.execute(pageViewEvent);
-    mockAmplitude.track(enriched.event_type, enriched.event_properties);
+    // Fire through the real Amplitude pipeline — dwell plugin enriches,
+    // logger plugin logs it, then it ships to Amplitude's servers.
+    amplitude.track('[Amplitude] Page Viewed', {
+      '[Amplitude] Page Counter': sessionPageCounter,
+      '[Amplitude] Page URL':     pages[index].url,
+      '[Amplitude] Page Title':   pages[index].title,
+    });
 
     // Update UI
     document.querySelectorAll('.article-page').forEach((p, i) => {
