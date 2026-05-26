@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Engaged Dwell Time Plugin — Amplitude</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f5f5f7;
+      color: #1d1d1f;
+      line-height: 1.6;
+    }
+
+    /* ── Tabs ─────────────────────────────────────────────────────────────── */
+    .tab-bar {
+      background: #fff;
+      border-bottom: 1px solid #e0e0e0;
+      display: flex;
+      gap: 0;
+      padding: 0 32px;
+      position: sticky;
+      top: 0;
+      z-index: 200;
+    }
+
+    .tab-btn {
+      padding: 14px 20px;
+      font-size: 14px;
+      font-weight: 500;
+      color: #6e6e73;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    .tab-btn:hover { color: #1d1d1f; }
+    .tab-btn.active { color: #0071e3; border-bottom-color: #0071e3; font-weight: 600; }
+
+    .tab-panel { display: none; }
+    #tab-demo.active  { display: block; }
+    #tab-howto.active { display: block; }
+
+    /* ── Demo bar ─────────────────────────────────────────────────────────── */
+    .demo-bar {
+      background: #fff;
+      border-bottom: 1px solid #e0e0e0;
+      padding: 16px 32px;
+      display: grid;
+      grid-template-columns: 1fr auto auto auto auto auto auto;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .stat-group { display: flex; flex-direction: column; }
+    .stat-label { font-size: 11px; font-weight: 500; color: #6e6e73; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 2px; }
+    .stat-value { font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; color: #1d1d1f; }
+
+    .ratio-wrap { display: flex; flex-direction: column; gap: 6px; min-width: 100px; }
+    .ratio-bar-bg { background: #f0f0f0; border-radius: 4px; height: 6px; overflow: hidden; }
+    #ratio-bar { height: 100%; border-radius: 4px; background: #0071e3; transition: width 0.5s ease; width: 0%; }
+
+    #engaged-badge {
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+      transition: background 0.3s, color 0.3s;
+    }
+    #engaged-badge.active { background: #e8f5e9; color: #2e7d32; }
+    #engaged-badge.idle   { background: #fce4ec; color: #c62828; }
+
+    .demo-btn {
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      white-space: nowrap;
+    }
+    #exit-btn { background: #0071e3; color: #fff; }
+    #exit-btn:hover { background: #005bbf; }
+
+    /* ── Instruction strip ────────────────────────────────────────────────── */
+    .instruction-strip {
+      background: #e8f0fe;
+      padding: 10px 32px;
+      font-size: 13px;
+      color: #1a3c6e;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+    }
+    .instruction-strip .hint { color: #4a6fa5; white-space: nowrap; font-size: 12px; }
+
+    /* ── Demo layout ──────────────────────────────────────────────────────── */
+    .demo-body {
+      display: grid;
+      grid-template-columns: 1fr 280px;
+      gap: 0;
+      min-height: calc(100vh - 160px);
+    }
+
+    /* ── Article area ─────────────────────────────────────────────────────── */
+    .article-area {
+      padding: 40px 48px 80px;
+      max-width: 760px;
+    }
+
+    .page-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #f0f0f0;
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #6e6e73;
+      margin-bottom: 24px;
+    }
+    .page-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: #c0c0c5;
+      transition: background 0.3s;
+    }
+    .page-dot.active { background: #0071e3; }
+
+    .article-page { display: none; }
+    .article-page.active { display: block; }
+
+    .article-kicker {
+      font-size: 12px;
+      font-weight: 600;
+      color: #0071e3;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 8px;
+    }
+    .article-page h1 {
+      font-size: 32px;
+      font-weight: 700;
+      line-height: 1.15;
+      margin-bottom: 10px;
+    }
+    .article-byline {
+      font-size: 14px;
+      color: #6e6e73;
+      margin-bottom: 28px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid #e0e0e0;
+    }
+    .article-page p { font-size: 16px; margin-bottom: 18px; }
+    .article-page h2 { font-size: 22px; font-weight: 700; margin: 32px 0 10px; }
+    .article-page blockquote {
+      border-left: 3px solid #0071e3;
+      padding: 4px 0 4px 20px;
+      margin: 24px 0;
+      font-size: 18px;
+      font-style: italic;
+      color: #3d3d3f;
+    }
+    .callout {
+      background: #e8f0fe;
+      border-radius: 10px;
+      padding: 18px 20px;
+      margin: 28px 0;
+      font-size: 14px;
+    }
+    .callout strong { display: block; margin-bottom: 4px; font-size: 15px; }
+
+    .page-nav {
+      display: flex;
+      gap: 12px;
+      margin-top: 36px;
+      padding-top: 24px;
+      border-top: 1px solid #e0e0e0;
+    }
+    .nav-btn {
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid #d0d0d5;
+      background: #fff;
+      color: #1d1d1f;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .nav-btn:hover { background: #f5f5f7; border-color: #b0b0b5; }
+    .nav-btn.primary { background: #0071e3; color: #fff; border-color: #0071e3; }
+    .nav-btn.primary:hover { background: #005bbf; border-color: #005bbf; }
+    .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    /* ── Event log sidebar ────────────────────────────────────────────────── */
+    .log-sidebar {
+      background: #1d1d1f;
+      padding: 20px 16px;
+      overflow-y: auto;
+      font-size: 11px;
+      font-family: 'SF Mono', 'Menlo', monospace;
+    }
+    .log-sidebar h3 {
+      font-size: 10px;
+      color: #6e6e73;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 14px;
+    }
+    .log-entry {
+      margin-bottom: 14px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid #2d2d2f;
+      line-height: 1.5;
+    }
+    .log-entry:last-child { border-bottom: none; }
+    .log-time  { color: #6e6e73; display: block; margin-bottom: 2px; }
+    .log-event-name { color: #64d2ff; display: block; margin-bottom: 4px; font-weight: 600; }
+    .log-prop  { color: #a1a1a6; display: block; padding-left: 8px; }
+    .log-prop .prop-key   { color: #9fa8da; }
+    .log-prop .prop-value { color: #c8e6c9; }
+    .log-prop .prop-value.inherited { color: #ffe082; }
+    .log-tag {
+      display: inline-block;
+      font-size: 9px;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-weight: 700;
+      margin-left: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .tag-exit    { background: #4a1942; color: #f48fb1; }
+    .tag-piggy   { background: #0d3050; color: #64d2ff; }
+    .tag-pageview { background: #1a3a1a; color: #81c784; }
+    .log-empty { color: #4e4e52; font-size: 11px; text-align: center; padding: 20px 0; }
+
+    /* ── How It Works tab ─────────────────────────────────────────────────── */
+    .howto-wrap {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 48px 32px 80px;
+    }
+    .howto-wrap h1 { font-size: 32px; font-weight: 700; margin-bottom: 8px; }
+    .howto-wrap .subtitle { font-size: 16px; color: #6e6e73; margin-bottom: 40px; }
+
+    .howto-wrap h2 {
+      font-size: 20px;
+      font-weight: 700;
+      margin: 40px 0 12px;
+      padding-top: 40px;
+      border-top: 1px solid #e0e0e0;
+    }
+    .howto-wrap h2:first-of-type { margin-top: 0; padding-top: 0; border-top: none; }
+    .howto-wrap p { font-size: 15px; margin-bottom: 16px; color: #3d3d3f; }
+    .howto-wrap ul { margin: 0 0 16px 20px; }
+    .howto-wrap li { font-size: 15px; color: #3d3d3f; margin-bottom: 6px; }
+
+    .arch-diagram {
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 12px;
+      padding: 24px;
+      margin: 20px 0 28px;
+      font-size: 13px;
+    }
+    .arch-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      padding: 12px 0;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .arch-row:last-child { border-bottom: none; padding-bottom: 0; }
+    .arch-badge {
+      flex-shrink: 0;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 12px;
+      min-width: 80px;
+      text-align: center;
+    }
+    .badge-exit  { background: #fce4ec; color: #c62828; }
+    .badge-piggy { background: #e3f2fd; color: #1565c0; }
+    .arch-detail { flex: 1; }
+    .arch-detail strong { display: block; margin-bottom: 3px; font-size: 13px; }
+    .arch-detail span { color: #6e6e73; line-height: 1.5; }
+
+    .props-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0 24px;
+      font-size: 13px;
+    }
+    .props-table th {
+      text-align: left;
+      padding: 8px 12px;
+      background: #f5f5f7;
+      font-weight: 600;
+      color: #6e6e73;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .props-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #f0f0f0;
+      vertical-align: top;
+    }
+    .props-table tr:last-child td { border-bottom: none; }
+    .prop-name { font-family: 'SF Mono', 'Menlo', monospace; color: #0071e3; font-size: 12px; }
+    .prop-desc { color: #3d3d3f; }
+
+    .code-block {
+      background: #1d1d1f;
+      border-radius: 10px;
+      padding: 20px 24px;
+      margin: 16px 0 24px;
+      overflow-x: auto;
+    }
+    .code-block pre {
+      font-family: 'SF Mono', 'Menlo', monospace;
+      font-size: 12px;
+      line-height: 1.7;
+      color: #e0e0e0;
+    }
+    .code-block .kw  { color: #64d2ff; }
+    .code-block .fn  { color: #ffd60a; }
+    .code-block .str { color: #a8ff78; }
+    .code-block .cmt { color: #6e6e73; }
+    .code-block .num { color: #ff9f0a; }
+
+    .risk-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin: 16px 0 24px;
+    }
+    .risk-card {
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 10px;
+      padding: 16px;
+    }
+    .risk-card h4 { font-size: 13px; font-weight: 700; margin-bottom: 6px; }
+    .risk-card p  { font-size: 13px; color: #6e6e73; margin: 0; }
+    .risk-card.low  h4 { color: #2e7d32; }
+    .risk-card.med  h4 { color: #e65100; }
+
+    .flow-steps { margin: 16px 0 24px; counter-reset: step; }
+    .flow-step {
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+      margin-bottom: 16px;
+    }
+    .step-num {
+      flex-shrink: 0;
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      background: #0071e3;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .step-content { flex: 1; padding-top: 4px; }
+    .step-content strong { display: block; font-size: 14px; margin-bottom: 3px; }
+    .step-content span { font-size: 13px; color: #6e6e73; }
+
+    /* ── Responsive ───────────────────────────────────────────────────────── */
+    @media (max-width: 768px) {
+      .demo-bar { grid-template-columns: 1fr 1fr; gap: 12px; }
+      .demo-body { grid-template-columns: 1fr; }
+      .log-sidebar { min-height: 280px; }
+      .article-area { padding: 24px 20px 60px; }
+      .risk-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Tab bar ─────────────────────────────────────────────────────────────── -->
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="switchTab('demo', this)">Live Demo</button>
+  <button class="tab-btn"        onclick="switchTab('howto', this)">How It Works</button>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- DEMO TAB                                                                   -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<div id="tab-demo" class="tab-panel active">
+
+  <!-- Demo bar -->
+  <div class="demo-bar">
+    <div class="stat-group">
+      <span class="stat-label">Engaged</span>
+      <span class="stat-value" id="val-engaged">0.0s</span>
+    </div>
+    <div class="stat-group">
+      <span class="stat-label">Total</span>
+      <span class="stat-value" id="val-total">0.0s</span>
+    </div>
+    <div class="stat-group">
+      <span class="stat-label">Idle</span>
+      <span class="stat-value" id="val-idle">0.0s</span>
+    </div>
+    <div class="ratio-wrap">
+      <div style="display:flex; justify-content:space-between;">
+        <span class="stat-label">Engaged ratio</span>
+        <span class="stat-label" id="val-ratio">—</span>
+      </div>
+      <div class="ratio-bar-bg"><div id="ratio-bar"></div></div>
+    </div>
+    <div id="engaged-badge" class="active">● ENGAGED</div>
+    <button class="demo-btn" id="exit-btn" onclick="simulateExit()">Simulate Page Exit</button>
+  </div>
+
+  <!-- Instruction strip -->
+  <div class="instruction-strip">
+    <span>Move your mouse, scroll, or type to register engagement. Navigate between pages using the arrows below to see dwell data piggybacked onto the next page view.</span>
+    <span class="hint">Inactivity threshold: 10s (30s in production)</span>
+  </div>
+
+  <!-- Demo body: article + log -->
+  <div class="demo-body">
+    <div class="article-area">
+
+      <!-- Page indicator -->
+      <div class="page-indicator">
+        <span id="page-label">Page 1 of 3</span>
+        <div class="page-dot active" id="dot-0"></div>
+        <div class="page-dot"        id="dot-1"></div>
+        <div class="page-dot"        id="dot-2"></div>
+      </div>
+
+      <!-- Page 1 -->
+      <div class="article-page active" id="page-0">
+        <div class="article-kicker">Product Analytics</div>
+        <h1>Why Dwell Time Is Lying to You</h1>
+        <p class="article-byline">In media, e-commerce and SaaS product analytics, time on page is one of the most cited engagement signals. But it has a fundamental flaw.</p>
+        <p>Raw dwell time is a timestamp delta. It measures the gap between when a page loaded and when the browser navigated away. It does not measure whether any human attention was directed at the page during that window.</p>
+        <blockquote>"A three-minute session and a thirty-second session look identical if the user walked away at the right moment."</blockquote>
+        <p>The result is a metric that systematically overstates engagement. Teams celebrate rising average session durations that are, in part, just rising rates of distraction, multi-tasking, and forgotten open tabs.</p>
+        <p>The fix is not complicated. The browser exposes a rich set of passive signals that prove a human is present and attending: mouse movements, scroll events, keyboard activity, clicks. Combine those with an inactivity window and you have a much cleaner picture of actual attention.</p>
+        <div class="callout">
+          <strong>Try it now</strong>
+          Stay still for 10 seconds. Watch the badge switch to IDLE and the engaged timer freeze. Then move your mouse — it snaps back. Navigate to page 2 to see the dwell data attached to that page view.
+        </div>
+        <div class="page-nav">
+          <button class="nav-btn" disabled>← Previous</button>
+          <button class="nav-btn primary" onclick="navigateTo(1)">Next: The Architecture →</button>
+        </div>
+      </div>
+
+      <!-- Page 2 -->
+      <div class="article-page" id="page-1">
+        <div class="article-kicker">Plugin Architecture</div>
+        <h1>How the Plugin Works</h1>
+        <p class="article-byline">A single enrichment plugin. No extra Amplitude events for most sessions.</p>
+        <p>The plugin uses Amplitude's built-in page counter to determine its behaviour. On the first page in a session, it starts tracking engaged time using a sliding activity window. When the user navigates to any subsequent page, the previous page's dwell data is attached directly to the incoming page view event.</p>
+        <h2>The page counter gate</h2>
+        <p>When a new <code>[Amplitude] Page Viewed</code> event passes through <code>execute()</code>, the plugin reads <code>[Amplitude] Page Counter</code>. If it is 1, this is the first page — tracking begins and no data is attached yet. If it is 2 or higher, the previous page's data is snapshotted and attached as <code>et_*</code> properties before the event reaches Amplitude's servers.</p>
+        <p>This means dwell time data travels on events that were already going to fire. No additional event volume for multi-page sessions.</p>
+        <div class="page-nav">
+          <button class="nav-btn" onclick="navigateTo(0)">← Previous</button>
+          <button class="nav-btn primary" onclick="navigateTo(2)">Next: The Properties →</button>
+        </div>
+      </div>
+
+      <!-- Page 3 -->
+      <div class="article-page" id="page-2">
+        <div class="article-kicker">Data Model</div>
+        <h1>The Property Schema</h1>
+        <p class="article-byline">Five properties, same names on both event types, so they join cleanly in Amplitude.</p>
+        <p>Whether dwell data arrives on a <code>[Engaged Dwell] Page Exit</code> event (single-page sessions) or as piggybacked properties on <code>[Amplitude] Page Viewed</code> (multi-page sessions), the property names are identical. This means you can build a single metric — <code>et_engaged_time_ms</code>, grouped by <code>et_page_title</code> — and drop both event types in without any property mapping.</p>
+        <h2>What is not captured</h2>
+        <p>The last page of any multi-page session does not have a subsequent page view to carry its data. This is an intentional tradeoff: capturing it would require a dedicated exit event on every session, which is the cost problem the architecture is designed to avoid. For most analytical questions — average engaged time by page, content quality scoring, funnel drop-off — the gap is acceptable.</p>
+        <div class="callout">
+          <strong>Single-page sessions are fully covered</strong>
+          When a user lands and leaves without navigating, the page counter never exceeds 1 and a <code>[Engaged Dwell] Page Exit</code> event fires on browser close or tab hide.
+        </div>
+        <div class="page-nav">
+          <button class="nav-btn" onclick="navigateTo(1)">← Previous</button>
+          <button class="nav-btn" disabled>End of demo →</button>
+        </div>
+      </div>
+
+    </div><!-- /article-area -->
+
+    <!-- Event log sidebar -->
+    <div class="log-sidebar">
+      <h3>Amplitude Events</h3>
+      <div id="log-entries">
+        <div class="log-empty">Events will appear here as they fire.</div>
+      </div>
+    </div>
+  </div><!-- /demo-body -->
+
+</div><!-- /tab-demo -->
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<!-- HOW IT WORKS TAB                                                           -->
+<!-- ══════════════════════════════════════════════════════════════════════════ -->
+<div id="tab-howto" class="tab-panel">
+  <div class="howto-wrap">
+
+    <h1>How the Plugin Works</h1>
+    <p class="subtitle">Architecture, event schema, SPA integration, and risks.</p>
+
+    <!-- Architecture -->
+    <h2>Architecture</h2>
+    <p>The plugin uses Amplitude's <code>[Amplitude] Page Counter</code> — already present on every <code>[Amplitude] Page Viewed</code> event — to determine which of two paths to take per session.</p>
+
+    <div class="arch-diagram">
+      <div class="arch-row">
+        <div class="arch-badge badge-exit">Page Exit</div>
+        <div class="arch-detail">
+          <strong>Single-page sessions — page counter stays at 1</strong>
+          <span>Fired on browser close, tab hide, or navigation away. Uses <code>visibilitychange</code>, <code>pagehide</code>, and <code>beforeunload</code> — deduplicated with a <code>hasFired</code> flag. Carries the full <code>et_*</code> schema for the only page visited.</span>
+        </div>
+      </div>
+      <div class="arch-row">
+        <div class="arch-badge badge-piggy">Piggyback</div>
+        <div class="arch-detail">
+          <strong>Multi-page sessions — page counter ≥ 2</strong>
+          <span>When each new <code>[Amplitude] Page Viewed</code> event passes through <code>execute()</code>, the previous page's dwell data is snapshotted and attached as <code>et_*</code> properties. No extra events created. Last-page dwell time is intentionally not captured.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Event flow -->
+    <h2>Event flow in a 3-page session</h2>
+    <div class="flow-steps">
+      <div class="flow-step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <strong>User lands on /page-1</strong>
+          <span><code>[Amplitude] Page Viewed</code> fires (counter = 1). Plugin starts the tick accumulator and stores page URL and title. No <code>et_*</code> data attached yet.</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <strong>User navigates to /page-2</strong>
+          <span><code>[Amplitude] Page Viewed</code> fires (counter = 2). Plugin's <code>execute()</code> snapshots /page-1 dwell data, attaches it as <code>et_*</code> properties on this event, then resets the accumulator for /page-2.</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <strong>User navigates to /page-3</strong>
+          <span><code>[Amplitude] Page Viewed</code> fires (counter = 3). Same as step 2 — /page-2 data attached to this event.</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <strong>User closes browser on /page-3</strong>
+          <span>Exit signals fire. Page counter is 3 — the plugin does nothing. /page-3 dwell time is not captured (accepted gap).</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Property schema -->
+    <h2>Property schema</h2>
+    <p>All five properties use the <code>et_</code> prefix and appear with identical names on both event types. This lets you build a single Amplitude metric — <code>et_engaged_time_ms</code> grouped by <code>et_page_title</code> — using both <code>[Engaged Dwell] Page Exit</code> and <code>[Amplitude] Page Viewed</code> as the event filter.</p>
+
+    <table class="props-table">
+      <thead>
+        <tr><th>Property</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="prop-name">et_engaged_time_ms</td><td class="prop-desc">Milliseconds the user was actively engaged. Stops accumulating after <code>inactivityThreshold</code> ms of no input.</td></tr>
+        <tr><td class="prop-name">et_total_time_ms</td><td class="prop-desc">Raw dwell time from page entry to navigation or exit.</td></tr>
+        <tr><td class="prop-name">et_page_url</td><td class="prop-desc">Full URL of the page being measured (not the current page for piggybacked events).</td></tr>
+        <tr><td class="prop-name">et_page_title</td><td class="prop-desc">Document title of the page being measured.</td></tr>
+        <tr><td class="prop-name">et_inactivity_threshold_ms</td><td class="prop-desc">The inactivity window used (default 30,000 ms). Useful for filtering if you run different thresholds across experiments.</td></tr>
+      </tbody>
+    </table>
+
+    <!-- SPA integration -->
+    <h2>SPA integration</h2>
+    <p>No router hook is required. The plugin detects navigation automatically: when a new <code>[Amplitude] Page Viewed</code> event passes through <code>execute()</code> with a counter of 2 or higher, the plugin knows a navigation just happened and handles the snapshot and reset internally.</p>
+    <p>The only prerequisite is that Amplitude's page view tracking fires on each SPA route change. This is standard configuration:</p>
+
+    <div class="code-block"><pre><span class="cmt">// Option A — automatic (Amplitude Browser SDK 2)</span>
+<span class="fn">amplitude</span>.<span class="fn">init</span>(<span class="str">'YOUR_API_KEY'</span>, {
+  defaultTracking: {
+    pageViews: <span class="kw">true</span>,   <span class="cmt">// fires on history pushState / replaceState</span>
+  }
+});
+
+<span class="cmt">// Option B — manual (call in your router hook)</span>
+router.afterEach((to) =&gt; {
+  <span class="fn">amplitude</span>.<span class="fn">track</span>(<span class="str">'[Amplitude] Page Viewed'</span>, {
+    <span class="str">'[Amplitude] Page URL'</span>:   to.fullPath,
+    <span class="str">'[Amplitude] Page Title'</span>: document.title,
+  });
+});</pre></div>
+
+    <p>The plugin reads <code>[Amplitude] Page Counter</code> from the event properties. If this value has not yet been set by Amplitude's own enrichment pipeline when your plugin runs, the plugin falls back to a self-tracked counter that increments on each <code>[Amplitude] Page Viewed</code> it sees.</p>
+
+    <!-- Installation -->
+    <h2>Installation</h2>
+
+    <div class="code-block"><pre><span class="cmt">// 1. Add the plugin file to your project, then:</span>
+<span class="kw">import</span> * <span class="kw">as</span> amplitude <span class="kw">from</span> <span class="str">'@amplitude/analytics-browser'</span>;
+
+<span class="kw">const</span> plugin = <span class="fn">createEngagedDwellTimePlugin</span>({
+  inactivityThreshold: <span class="num">30_000</span>,  <span class="cmt">// ms before user is considered idle</span>
+});
+
+<span class="fn">amplitude</span>.<span class="fn">init</span>(<span class="str">'YOUR_API_KEY'</span>, {
+  defaultTracking: { pageViews: <span class="kw">true</span> }
+});
+
+<span class="fn">amplitude</span>.<span class="fn">add</span>(plugin);</pre></div>
+
+    <!-- Risks -->
+    <h2>Risks and tradeoffs</h2>
+    <div class="risk-grid">
+      <div class="risk-card low">
+        <h4>Low — Hard browser crash</h4>
+        <p>No JavaScript solution can recover data when the browser process is killed. Affects ~1–2% of sessions across all analytics tools equally.</p>
+      </div>
+      <div class="risk-card low">
+        <h4>Low — Last-page data gap</h4>
+        <p>The final page in any multi-page session is not captured. Intentional tradeoff to avoid extra event volume. Does not affect pages 1 through N-1.</p>
+      </div>
+      <div class="risk-card low">
+        <h4>Low — iOS Safari</h4>
+        <p><code>beforeunload</code> is unreliable on iOS. Covered by <code>visibilitychange</code>, which fires reliably when the user switches apps or locks the screen.</p>
+      </div>
+      <div class="risk-card med">
+        <h4>Medium — Page counter availability</h4>
+        <p>If this plugin runs before Amplitude's page tracking plugin in the enrichment pipeline, <code>[Amplitude] Page Counter</code> may not be set. The self-tracked fallback counter handles this, but ordering plugins explicitly is recommended.</p>
+      </div>
+    </div>
+
+    <!-- Cost -->
+    <h2>Event volume impact</h2>
+    <p>For a typical multi-page session (3+ pages), the plugin adds <strong>zero extra events</strong>. Dwell data travels on <code>[Amplitude] Page Viewed</code> events already being sent.</p>
+    <p>The only new event is <code>[Engaged Dwell] Page Exit</code>, which fires exclusively for single-page sessions — users who land and leave without navigating. If your bounce rate is 40%, approximately 40% of sessions will generate one extra event. Sessions with two or more page views generate none.</p>
+
+  </div>
+</div><!-- /tab-howto -->
+
+
+<!-- ── Scripts ──────────────────────────────────────────────────────────────── -->
+<script src="engaged-dwell-time-plugin.js"></script>
+<script>
+  // ── Mock Amplitude ────────────────────────────────────────────────────────
+  // Replace with a real amplitude.init() + amplitude.add(plugin) for live data.
+  //
+  //   import * as amplitude from '@amplitude/analytics-browser';
+  //   amplitude.init('YOUR_API_KEY', { defaultTracking: { pageViews: true } });
+  //   amplitude.add(plugin);
+
+  const logEntries = document.getElementById('log-entries');
+  let logEmpty = true;
+
+  function logEvent(name, props, tag) {
+    if (logEmpty) { logEntries.innerHTML = ''; logEmpty = false; }
+
+    const entry = document.createElement('div');
+    entry.className = 'log-entry';
+
+    const time = new Date().toLocaleTimeString([], { hour12: false });
+    const tagHtml = tag ? `<span class="log-tag ${tag.cls}">${tag.label}</span>` : '';
+
+    const propsHtml = Object.entries(props)
+      .filter(([k]) => !k.startsWith('[Amplitude]') || k.includes('Page Counter'))
+      .map(([k, v]) => {
+        const isEt = k.startsWith('et_');
+        const valClass = isEt ? 'prop-value inherited' : 'prop-value';
+        const display = typeof v === 'string' && v.length > 40 ? v.slice(0, 40) + '…' : v;
+        return `<span class="log-prop"><span class="prop-key">${k}</span>: <span class="${valClass}">${JSON.stringify(display)}</span></span>`;
+      }).join('');
+
+    entry.innerHTML = `
+      <span class="log-time">${time}</span>
+      <span class="log-event-name">${name}${tagHtml}</span>
+      ${propsHtml}
+    `;
+    logEntries.prepend(entry);
+  }
+
+  const mockAmplitude = {
+    track(name, props) {
+      console.group(`📡 ${name}`);
+      console.table(props);
+      console.groupEnd();
+      const isExit  = name === '[Engaged Dwell] Page Exit';
+      const hasPiggy = props && Object.keys(props).some(k => k.startsWith('et_'));
+      let tag = null;
+      if (isExit)   tag = { cls: 'tag-exit',    label: 'Page Exit' };
+      else if (hasPiggy) tag = { cls: 'tag-piggy', label: 'Piggybacked' };
+      else          tag = { cls: 'tag-pageview', label: 'Page View' };
+      logEvent(name, props || {}, tag);
+    },
+    flush() { console.log('📤 flush()'); }
+  };
+
+  // ── Initialise plugin ─────────────────────────────────────────────────────
+  const plugin = createEngagedDwellTimePlugin({ inactivityThreshold: 10_000 });
+  plugin.setup({}, mockAmplitude);
+
+  // Fire the first page view (page counter = 1)
+  (async () => {
+    const firstPageView = await plugin.execute({
+      event_type: '[Amplitude] Page Viewed',
+      event_properties: {
+        '[Amplitude] Page Counter': 1,
+        '[Amplitude] Page URL':   location.href,
+        '[Amplitude] Page Title': 'Why Dwell Time Is Lying to You',
+      }
+    });
+    mockAmplitude.track(firstPageView.event_type, firstPageView.event_properties);
+  })();
+
+  // ── SPA navigation simulation ─────────────────────────────────────────────
+  const pages = [
+    { title: 'Why Dwell Time Is Lying to You',  url: '/demo/page-1' },
+    { title: 'How the Plugin Works',             url: '/demo/page-2' },
+    { title: 'The Property Schema',              url: '/demo/page-3' },
+  ];
+
+  let currentPage = 0;
+
+  async function navigateTo(index) {
+    currentPage = index;
+    const counter = index + 1;
+
+    // Simulate [Amplitude] Page Viewed — plugin's execute() handles snapshot + reset
+    const pageViewEvent = {
+      event_type: '[Amplitude] Page Viewed',
+      event_properties: {
+        '[Amplitude] Page Counter': counter,
+        '[Amplitude] Page URL':     pages[index].url,
+        '[Amplitude] Page Title':   pages[index].title,
+      }
+    };
+
+    const enriched = await plugin.execute(pageViewEvent);
+    mockAmplitude.track(enriched.event_type, enriched.event_properties);
+
+    // Update UI
+    document.querySelectorAll('.article-page').forEach((p, i) => {
+      p.classList.toggle('active', i === index);
+    });
+    document.querySelectorAll('.page-dot').forEach((d, i) => {
+      d.classList.toggle('active', i === index);
+    });
+    document.getElementById('page-label').textContent = `Page ${index + 1} of 3`;
+  }
+
+  // ── Simulate page exit ────────────────────────────────────────────────────
+  function simulateExit() {
+    plugin.simulateExit();
+  }
+
+  // ── Live stats ─────────────────────────────────────────────────────────────
+  const valEngaged = document.getElementById('val-engaged');
+  const valTotal   = document.getElementById('val-total');
+  const valIdle    = document.getElementById('val-idle');
+  const valRatio   = document.getElementById('val-ratio');
+  const badge      = document.getElementById('engaged-badge');
+  const ratioBar   = document.getElementById('ratio-bar');
+
+  function fmt(ms) { return (ms / 1000).toFixed(1) + 's'; }
+
+  setInterval(() => {
+    const engaged = plugin.getEngagedTimeMs();
+    const total   = plugin.getTotalTimeMs();
+    const idle    = Math.max(0, total - engaged);
+    const ratio   = total > 0 ? engaged / total : 0;
+    const active  = plugin.isEngaged();
+
+    valEngaged.textContent = fmt(engaged);
+    valTotal.textContent   = fmt(total);
+    valIdle.textContent    = fmt(idle);
+    valRatio.textContent   = (ratio * 100).toFixed(0) + '%';
+    ratioBar.style.width   = (ratio * 100).toFixed(1) + '%';
+
+    badge.textContent = active ? '● ENGAGED' : '● IDLE';
+    badge.className   = `${active ? 'active' : 'idle'}`;
+    badge.id          = 'engaged-badge';
+  }, 200);
+</script>
+</body>
+</html>
