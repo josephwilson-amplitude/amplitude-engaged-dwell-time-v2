@@ -764,16 +764,17 @@ router.afterEach((to) =&gt; {
   ];
 
   let currentPage = 0;
+  let sessionPageCounter = 1; // mirrors Amplitude's real counter — always increments, never resets
 
   async function navigateTo(index) {
     currentPage = index;
-    const counter = index + 1;
+    sessionPageCounter++;     // every navigation is a new page view in the session
 
     // Simulate [Amplitude] Page Viewed — plugin's execute() handles snapshot + reset
     const pageViewEvent = {
       event_type: '[Amplitude] Page Viewed',
       event_properties: {
-        '[Amplitude] Page Counter': counter,
+        '[Amplitude] Page Counter': sessionPageCounter,
         '[Amplitude] Page URL':     pages[index].url,
         '[Amplitude] Page Title':   pages[index].title,
       }
