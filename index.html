@@ -49,8 +49,9 @@
       background: #fff;
       border-bottom: 1px solid #e0e0e0;
       padding: 16px 32px;
-      display: grid;
-      grid-template-columns: 1fr auto auto auto auto;
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
       align-items: center;
       gap: 24px;
     }
@@ -59,9 +60,7 @@
     .stat-label { font-size: 11px; font-weight: 500; color: #6e6e73; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 2px; }
     .stat-value { font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; color: #1d1d1f; }
 
-    .ratio-wrap { display: flex; flex-direction: column; gap: 6px; min-width: 100px; }
-    .ratio-bar-bg { background: #f0f0f0; border-radius: 4px; height: 6px; overflow: hidden; }
-    #ratio-bar { height: 100%; border-radius: 4px; background: #0071e3; transition: width 0.5s ease; width: 0%; }
+
 
     #engaged-badge {
       padding: 6px 14px;
@@ -414,23 +413,16 @@
 
   <!-- Demo bar -->
   <div class="demo-bar">
-    <div class="stat-group">
+    <div id="engaged-badge" class="active">● ENGAGED</div>
+    <div class="stat-group" style="text-align:right; margin-left:24px;">
       <span class="stat-label">Total</span>
       <span class="stat-value" id="val-total">0.0s</span>
     </div>
-    <div class="ratio-wrap">
-      <div style="display:flex; justify-content:space-between;">
-        <span class="stat-label">Engaged ratio</span>
-        <span class="stat-label" id="val-ratio">—</span>
-      </div>
-      <div class="ratio-bar-bg"><div id="ratio-bar"></div></div>
-    </div>
-    <div id="engaged-badge" class="active">● ENGAGED</div>
-    <div class="stat-group" style="text-align:right;">
+    <div class="stat-group" style="text-align:right; margin-left:24px;">
       <span class="stat-label">Engaged</span>
       <span class="stat-value" id="val-engaged">0.0s</span>
     </div>
-    <button class="demo-btn" id="exit-btn" onclick="simulateExit()">Simulate Page Exit</button>
+    <button class="demo-btn" id="exit-btn" style="margin-left:24px;" onclick="simulateExit()">Simulate Page Exit</button>
   </div>
 
   <!-- Instruction strip -->
@@ -802,22 +794,17 @@ router.afterEach((to) =&gt; {
   // ── Live stats ─────────────────────────────────────────────────────────────
   const valEngaged = document.getElementById('val-engaged');
   const valTotal   = document.getElementById('val-total');
-  const valRatio   = document.getElementById('val-ratio');
   const badge      = document.getElementById('engaged-badge');
-  const ratioBar   = document.getElementById('ratio-bar');
 
   function fmt(ms) { return (ms / 1000).toFixed(1) + 's'; }
 
   setInterval(() => {
     const engaged = plugin.getEngagedTimeMs();
     const total   = plugin.getTotalTimeMs();
-    const ratio   = total > 0 ? engaged / total : 0;
     const active  = plugin.isEngaged();
 
     valEngaged.textContent = fmt(engaged);
     valTotal.textContent   = fmt(total);
-    valRatio.textContent   = (ratio * 100).toFixed(0) + '%';
-    ratioBar.style.width   = (ratio * 100).toFixed(1) + '%';
 
     badge.textContent = active ? '● ENGAGED' : '● IDLE';
     badge.className   = `${active ? 'active' : 'idle'}`;
